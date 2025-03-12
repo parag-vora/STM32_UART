@@ -103,7 +103,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 //	  HAL_UART_Transmit(&huart3, tx_buffer, 25, 10);
-//	  HAL_Delay(1000);
+//	  HAL_Delay(2000);
 
 //	  HAL_UART_Receive(&huart3, rx_buffer, 5, 10);
 	  HAL_UART_Receive_IT(&huart3, rx_buffer, 6);
