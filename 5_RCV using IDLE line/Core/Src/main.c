@@ -41,16 +41,16 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart3;
+DMA_HandleTypeDef hdma_usart3_rx;
 
 /* USER CODE BEGIN PV */
-uint8_t tx_buffer[25] = "USART established\n\r";
 
-uint8_t rx_buffer[6];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -58,7 +58,26 @@ static void MX_USART3_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint8_t RxData[4096];
+int cnt = 0;
+uint16_t indx = 0;
+uint16_t timer_cnt = 0;
 
+////IDLE line using Interrupt
+//void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+//
+//	cnt = Size;
+//	HAL_UARTEx_ReceiveToIdle_IT(&huart3, RxData, 30);
+//}
+
+//IDLE line using DMA Normal mode
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+
+	indx = Size;
+	cnt++;
+	timer_cnt = 0;
+	HAL_UARTEx_ReceiveToIdle_DMA(&huart3, RxData, 4096);
+}
 /* USER CODE END 0 */
 
 /**
@@ -75,7 +94,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	HAL_Init();
+  HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -90,9 +109,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+//  //IDLE line using interrupt
+//  HAL_UARTEx_ReceiveToIdle_IT(&huart3, RxData, 30);
 
+  // IDLE line using DMA
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart3, RxData, 4096);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -100,13 +124,12 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  if(timer_cnt >= 2000){
+		  timer_cnt = 0;
+	  }
+	HAL_GPIO_TogglePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin);
+	HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
-	  HAL_UART_Transmit(&huart3, tx_buffer, 25, 10);
-	  HAL_Delay(2000);
-
-//	  HAL_UART_Receive(&huart3, rx_buffer, 5, 10);
-//	  HAL_UART_Receive_IT(&huart3, rx_buffer, 6);
   }
   /* USER CODE END 3 */
 }
@@ -186,6 +209,22 @@ static void MX_USART3_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream1_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -215,26 +254,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-__weak void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(huart);
-  /* NOTE: This function should not be modified, when the callback is needed,
-           the HAL_UART_RxCpltCallback could be implemented in the user file
-   */
 
-
-
- if(!strcmp(rx_buffer, "LED_ON")){
-	 	 HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_SET);
-   }
-
- if(!strcmp(rx_buffer, "LED_OF")){
-	   HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
-   }
-
-   HAL_UART_Transmit(&huart3, rx_buffer, 6, 10);
-}
 /* USER CODE END 4 */
 
 /**
